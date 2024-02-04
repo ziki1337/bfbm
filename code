@@ -1,0 +1,212 @@
+code activity_his.xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F0E8F3"
+    tools:context=".ActivityHis">
+
+    <Button
+        android:id="@+id/button_back"
+        android:layout_width="114dp"
+        android:layout_height="52dp"
+        android:layout_gravity="center"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="24dp"
+        android:backgroundTint="#F0E8F3"
+        android:elevation="30dp"
+        android:fontFamily="@font/rubik"
+        android:text="Выход"
+        android:textColor="#000000"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:cornerRadius="10sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:strokeColor="@color/black"
+        app:strokeWidth="1sp" />
+
+    <View
+        android:id="@+id/view3"
+        android:layout_width="390dp"
+        android:layout_height="570dp"
+        android:layout_marginTop="80dp"
+
+        android:background="@drawable/rounded_corner1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.476"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/history_list"
+        android:layout_width="380dp"
+        android:layout_height="560dp"
+        android:layout_marginTop="84dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.483"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+Code HistoryAdapter:
+class HistoryAdapter(
+    private val context: Context,
+    private val historyList: List<History>
+) : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(context).inflate(R.layout.history_list, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val history = historyList[position]
+
+        holder.nameTextView.text = history.name
+        holder.descriptionTextView.text = history.description
+        holder.amountTextView.text = history.amount.toString()
+
+        val color = if (history.type == 0) Color.RED else Color.GREEN
+        holder.amountTextView.setTextColor(color)
+
+        val drawable = if (history.type == 0) R.drawable.up_arrow_svgrepo_com else R.drawable.down_arrow_svgrepo_com
+        holder.iconImageView.setImageResource(drawable)
+    }
+
+    override fun getItemCount(): Int {
+        return historyList.size
+    }
+
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val nameTextView: TextView = itemView.findViewById(R.id.name_text_view)
+        val descriptionTextView: TextView = itemView.findViewById(R.id.description_text_view)
+        val amountTextView: TextView = itemView.findViewById(R.id.amount_text_view)
+        val iconImageView: ImageView = itemView.findViewById(R.id.icon_image_view)
+    }
+}
+Code ActivityHis:
+class ActivityHis : AppCompatActivity() {
+
+    private lateinit var historyList: RecyclerView
+    private lateinit var historyAdapter: HistoryAdapter
+    private lateinit var db: SQLiteDatabase
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_his)
+
+        // Инициализация базы данных
+        db = openOrCreateDatabase("history.db", MODE_PRIVATE, null)
+        db.execSQL("CREATE TABLE IF NOT EXISTS history (_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, description TEXT, amount REAL, type INTEGER, date INTEGER)")
+
+        // Настройка кнопки "Назад"
+        val buttonBack: Button = findViewById(R.id.button_back)
+        buttonBack.setOnClickListener {
+            finish()
+        }
+
+        // Настройка RecyclerView
+        historyList = findViewById(R.id.history_list)
+        historyAdapter = HistoryAdapter(this, getHistoryData())
+        historyList.adapter = historyAdapter
+        historyList.layoutManager = LinearLayoutManager(this)
+    }
+
+    @SuppressLint("Range")
+    private fun getHistoryData(): List<History> {
+        // Получение данных из базы данных
+        val cursor = db.rawQuery("SELECT * FROM history ORDER BY date DESC", null)
+        val historyList = mutableListOf<History>()
+
+        while (cursor.moveToNext()) {
+            val id = cursor.getInt(cursor.getColumnIndex("_id")) as Int
+            val name = cursor.getString(cursor.getColumnIndex("name")) as String
+            val description = cursor.getString(cursor.getColumnIndex("description")) as String
+            val amount = cursor.getDouble(cursor.getColumnIndex("amount")) as Double
+            val type = cursor.getInt(cursor.getColumnIndex("type")) as Int
+            val date = cursor.getLong(cursor.getColumnIndex("date")) as Long
+
+            val history = History(id, name, description, amount, type, date)
+            historyList.add(history)
+        }
+
+        cursor.close()
+        return historyList
+    }
+}
+Code History:
+data class History(
+    val id: Int,
+    val name: String,
+    val description: String,
+    val amount: Double,
+    val type: Int,
+    val date: Long
+)
+Code DbHelper:
+class DbHelper(context: Context, factory: SQLiteDatabase.CursorFactory?) :
+    SQLiteOpenHelper(context, "app", factory, 1) {
+    override fun onCreate(db: SQLiteDatabase?) {
+        val query = "CREATE TABLE users (id INT PRIMARY KEY, login TEXT, email TEXT, pass TEXT)"
+        db!!.execSQL(query)
+
+        val queryIncome = "CREATE TABLE incomes (id INTEGER PRIMARY KEY, user_id INTEGER, doh_desc TEXT, doh_sum REAL, date DATE, time TIME)"
+        db.execSQL(queryIncome)
+        val queryExpenses = "CREATE TABLE expenses (id INTEGER PRIMARY KEY, user_id INTEGER, rash_desc TEXT, rash_sum REAL, date DATE, time TIME)"
+        db.execSQL(queryExpenses)
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
+        db!!.execSQL("DROP TABLE IF EXISTS users")
+        db.execSQL("DROP TABLE IF EXISTS incomes")
+        onCreate(db)
+    }
+
+    fun addUser(user: User) : Boolean{
+        val values = ContentValues()
+        values.put("login", user.login)
+        values.put("pass", user.pass)
+
+        val db = this.writableDatabase
+        db.insert("users", null, values)
+        return true
+    }
+
+    fun getUser(login: String, pass: String): Boolean {
+        val db = this.readableDatabase
+
+        val result = db.rawQuery("SELECT * FROM users WHERE login = '$login' AND pass = '$pass'", null)
+        return result.moveToFirst()
+    }
+
+    fun addIncome(doh: Doh) {
+        val values = ContentValues()
+        values.put("user_id", doh.userId)
+        values.put("doh_desc", doh.doh_desc)
+        values.put("doh_sum", doh.doh_sum)
+        values.put("date", doh.date)
+        values.put("time", doh.time)
+
+        val db = this.writableDatabase
+        db.insert("incomes", null, values)
+    }
+
+    fun getUserIncome(user_id: Int): Cursor? {
+        val db = this.readableDatabase
+        val query = "SELECT * FROM incomes WHERE user_id = $user_id"
+        return db.rawQuery(query, null)
+    }
+    fun addRash(rash: Rash) {
+        val values = ContentValues()
+        values.put("user_id", rash.userId)
+        values.put("rash_desc", rash.rash_desc)
+        values.put("rash_sum", rash.rash_sum)
+        values.put("date", rash.date)
+        values.put("time", rash.time)
+
+        val db = this.writableDatabase
+        db.insert("expenses", null, values)  // Используйте таблицу "expenses" для расходов
+    }
+}
